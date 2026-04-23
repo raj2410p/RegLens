@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+/* Custom component classes */
+@layer components {
+
+  /* Cards */
+  .stat-card {
+    @apply bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-150 cursor-pointer select-none;
+  }
+  .btn-primary {
+    @apply bg-slate-900 text-white hover:bg-slate-700 shadow-sm active:scale-95;
+  }
+  .btn-ghost {
+    @apply border border-slate-300 text-slate-700 hover:bg-slate-100 active:scale-95;
+  }
+
+  /* Risk chips */
+  .chip {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest border;
+  }
+  .chip-low    { @apply bg-emerald-50  text-emerald-700 border-emerald-200; }
+  .chip-medium { @apply bg-amber-50   text-amber-700   border-amber-200;   }
+  .chip-high   { @apply bg-rose-50    text-rose-700    border-rose-200;    }
+
+  /* Inputs */
+  .input-field {
+    @apply w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg
+           focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent
+           placeholder:text-slate-400 transition-all;
+  }
+}
