@@ -166,6 +166,7 @@ function SettingsPage() {
             { fmt: 'CSV', status: 'live' },
             { fmt: 'JSON', status: 'live' },
             { fmt: 'XML (Basic)', status: 'live' },
+            { fmt: 'PDF (AI-Powered)', status: 'live' },
             { fmt: 'ISO 20022', status: 'stub' },
             { fmt: 'SWIFT MT', status: 'stub' },
             { fmt: 'ACH / NACHA', status: 'stub' },
@@ -342,7 +343,7 @@ export default function App() {
                   )}
                   {loading ? 'Processing…' : 'Upload File'}
                 </label>
-                <input id="upload" type="file" className="hidden" onChange={upload} />
+                <input id="upload" type="file" className="hidden" accept=".csv,.json,.xml,.pdf" onChange={upload} />
               </div>
 
               {/* Stats */}

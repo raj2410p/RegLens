@@ -34,7 +34,7 @@ app.use(express.json());
 // Routes
 
 /**
- * Upload and process files (CSV, JSON, XML)
+ * Upload and process files (CSV, JSON, XML,pdf)
  */
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
@@ -49,17 +49,19 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       normalizedData = ParserService.parseJSON(req.file.buffer);
     } else if (filename.endsWith('.xml')) {
       normalizedData = await ParserService.parseXML(req.file.buffer);
+    } else if (filename.endsWith('.pdf')) {
+      normalizedData = await ParserService.parsePDF(req.file.buffer, llm);
     } else {
-      return res.status(400).json({ error: 'Unsupported file format. Please use CSV, JSON, or XML.' });
+      return res.status(400).json({ error: 'Unsupported file format. Please use CSV, JSON, XML, or PDF.' });
     }
 
     const processedTransactions = [];
-    
+
     // Process each transaction through Risk Engine
     for (const data of normalizedData) {
       const history = await Transaction.find({ sender: data.sender }).sort({ timestamp: -1 }).limit(50);
       const riskResults = await RiskEngine.evaluate(data, history);
-      
+
       const tx = new Transaction({ ...data, ...riskResults });
 
       // ✦ Generate AI explanation for ALL transactions — not just flagged ones
@@ -69,9 +71,9 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       processedTransactions.push(saved);
     }
 
-    res.json({ 
-      message: `Successfully processed ${processedTransactions.length} transactions with AI analysis.`, 
-      count: processedTransactions.length 
+    res.json({
+      message: `Successfully processed ${processedTransactions.length} transactions with AI analysis.`,
+      count: processedTransactions.length
     });
   } catch (err) {
     console.error(err);

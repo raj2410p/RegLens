@@ -43,6 +43,27 @@ class ParserService {
   }
 
   /**
+   * Parses PDF data by extracting text and using AI to identify records
+   */
+  static async parsePDF(buffer, llmService) {
+    if (!llmService) throw new Error('LLM Service required for PDF extraction');
+    
+    const { PDFParse } = require('pdf-parse');
+    const parser = new PDFParse({ data: buffer, verbosity: 0 });
+    const result = await parser.getText();
+    const text = result.text;
+
+    if (!text || text.trim().length < 5) {
+      throw new Error('Could not extract meaningful text from PDF.');
+    }
+
+    // Use AI to extract transactions
+    const records = await llmService.parseUnstructuredTransactions(text);
+    
+    return records.map(record => this.normalize(record, 'PDF'));
+  }
+
+  /**
    * Normalizes a raw record from any source into our internal schema
    */
   static normalize(raw, format) {

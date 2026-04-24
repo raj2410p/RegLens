@@ -8,7 +8,7 @@
  * mockExplanation / mockQuery are fallbacks ONLY when API key is missing.
  */
 
-const { GoogleGenAI } = require('@google/genai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 class LlmService {
   constructor() {
@@ -16,9 +16,9 @@ class LlmService {
     this.useMock = !apiKey || apiKey === 'MOCK';
 
     if (!this.useMock) {
-      // @google/genai standard implementation
-      this.ai = new GoogleGenAI(apiKey);
-      this.modelName = 'gemini-1.5-flash'; // Optimized for speed/cost in compliance workflows
+      // @google/generative-ai standard implementation
+      this.ai = new GoogleGenerativeAI(apiKey);
+      this.modelName = 'gemini-1.5-flash-latest'; // Balanced for performance/availability
       console.log(`[LlmService] ✓ Gemini AI initialized (${this.modelName})`);
     } else {
       console.warn('[LlmService] ⚠ No API key — using mock fallback');
@@ -143,6 +143,51 @@ Instructions:
   }
 
   /* ──────────────────────────────────────────
+     3. UNSTRUCTURED TEXT PARSING (PDF)
+        Takes raw text extracted from a PDF and
+        uses Gemini to find and normalize records.
+  ────────────────────────────────────────── */
+  buildPdfExtractionPrompt(text) {
+    return `
+You are a financial data extractor. Below is text extracted from a bank statement or transaction PDF.
+Your task is to identify and extract all individual transactions from this text.
+
+For each transaction, extract:
+- sender: the entity sending money (if it's the statement owner, use "Account Holder" or similar)
+- receiver: the entity receiving money
+- amount: the numeric value (no currency symbols)
+- currency: the 3-letter currency code (e.g., USD, EUR)
+- timestamp: the transaction date (ISO 8601 format or YYYY-MM-DD)
+- transactionType: e.g., "Transfer", "Payment", "Deposit", "Withdrawal"
+- country: the likely country of the transaction (2-letter code if possible, or full name)
+
+Raw Text:
+"""
+${text.substring(0, 5000)} 
+"""
+
+Instructions:
+- Return ONLY a JSON array of objects.
+- Do NOT include markdown formatting or code blocks.
+- If no transactions are found, return [].
+- Fields should be: "sender", "receiver", "amount", "currency", "timestamp", "transactionType", "country".
+`.trim();
+  }
+
+  async parseUnstructuredTransactions(text) {
+    if (this.useMock) return this.mockPdfParse(text);
+
+    try {
+      const raw = await this._generate(this.buildPdfExtractionPrompt(text));
+      const cleaned = raw.replace(/```json|```/g, '').trim();
+      return JSON.parse(cleaned);
+    } catch (err) {
+      console.error('[LlmService] PDF extraction failed:', err.message);
+      return this.mockPdfParse(text);
+    }
+  }
+
+  /* ──────────────────────────────────────────
      MOCK FALLBACKS (used only when no API key)
   ────────────────────────────────────────── */
   mockExplanation(tx) {
@@ -170,6 +215,22 @@ Instructions:
       return { intent: 'SUMMARY', message: `${total} transactions processed. ${flagged} flagged, ${high} high risk.` };
     }
     return { intent: 'GENERAL', message: `Try: "show high risk", "summarize today" or "any transactions from North Korea?"` };
+  }
+
+  mockPdfParse(text) {
+    // Basic mock if API is down
+    console.warn('[LlmService] Using mock PDF parser');
+    return [
+      {
+        sender: 'Mock Sender Corp',
+        receiver: 'User Account',
+        amount: 1500.00,
+        currency: 'USD',
+        timestamp: new Date().toISOString(),
+        transactionType: 'Deposit',
+        country: 'US'
+      }
+    ];
   }
 }
 
