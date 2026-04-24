@@ -278,9 +278,12 @@ export default function App() {
       ${navOpen ? 'translate-x-0' : '-translate-x-full'}
       lg:translate-x-0 lg:relative lg:flex-shrink-0
     `}>
-      <div className="px-6 py-5 border-b border-slate-800">
-        <span className="text-lg font-black tracking-tight">RegLens</span>
-        <p className="text-slate-500 text-[10px] mt-0.5">Risk Review Assistant</p>
+      <div className="px-6 py-5 border-b border-slate-800 flex items-center gap-3">
+        <img src="/logo.png" alt="RegLens Logo" className="w-8 h-8 rounded-lg shadow-lg" />
+        <div>
+          <span className="text-lg font-black tracking-tight">RegLens</span>
+          <p className="text-slate-500 text-[10px] mt-0.5">Risk Review Assistant</p>
+        </div>
       </div>
       <nav className="flex-1 px-3 py-5 space-y-1">
         <p className="text-slate-600 text-[9px] font-bold uppercase tracking-widest px-2 mb-3">Navigation</p>
@@ -312,7 +315,10 @@ export default function App() {
 
         {/* Mobile top bar */}
         <div className="lg:hidden sticky top-0 z-30 bg-white border-b border-slate-200 flex items-center justify-between px-4 py-3">
-          <span className="font-bold text-slate-900">RegLens</span>
+          <div className="flex items-center gap-2">
+            <img src="/logo.png" alt="RegLens Logo" className="w-7 h-7 rounded-md" />
+            <span className="font-bold text-slate-900">RegLens</span>
+          </div>
           <button onClick={() => setNavOpen(true)} className="p-1 text-slate-600">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
