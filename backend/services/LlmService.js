@@ -18,7 +18,7 @@ class LlmService {
     if (!this.useMock) {
       // @google/generative-ai standard implementation
       this.ai = new GoogleGenerativeAI(apiKey);
-      this.modelName = 'gemini-1.5-flash-latest'; // Balanced for performance/availability
+      this.modelName = 'gemini-1.5-flash'; // Balanced for performance/availability
       console.log(`[LlmService] ✓ Gemini AI initialized (${this.modelName})`);
     } else {
       console.warn('[LlmService] ⚠ No API key — using mock fallback');

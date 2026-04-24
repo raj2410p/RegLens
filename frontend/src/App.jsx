@@ -8,6 +8,126 @@ function RiskChip({ level }) {
   return <span className={`chip chip-${level?.toLowerCase()}`}>{level}</span>;
 }
 
+/* ── Risk Score Gauge (Pure CSS) ── */
+function RiskScoreGauge({ score }) {
+  const color = score >= 70 ? '#e11d48' : score >= 30 ? '#d97706' : '#059669';
+  const radius = 36;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+
+  return (
+    <div className="relative inline-flex items-center justify-center">
+      <svg className="w-24 h-24 transform -rotate-90">
+        <circle
+          cx="48" cy="48" r={radius}
+          stroke="currentColor" strokeWidth="8"
+          fill="transparent"
+          className="text-slate-100"
+        />
+        <circle
+          cx="48" cy="48" r={radius}
+          strokeWidth="8"
+          fill="transparent"
+          strokeDasharray={circumference}
+          style={{ strokeDashoffset: offset, transition: 'stroke-dashoffset 0.5s ease-out' }}
+          strokeLinecap="round"
+          className="text-primary-color"
+          stroke={color}
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center">
+        <span className="text-xl font-black leading-none">{score}</span>
+        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Score</span>
+      </div>
+    </div>
+  );
+}
+
+/* ── Compliance Report (Printable) ── */
+function ComplianceReport({ data, onClose }) {
+  if (!data) return null;
+  return (
+    <div className="fixed inset-0 z-[100] bg-white overflow-y-auto p-8 sm:p-16 printable-report">
+      <div className="max-w-4xl mx-auto space-y-12">
+        {/* Header */}
+        <div className="flex justify-between items-start border-b-2 border-slate-900 pb-8">
+          <div>
+            <h1 className="text-4xl font-black tracking-tight text-slate-900">RegLens Compliance Audit</h1>
+            <p className="text-slate-500 font-medium mt-1">Status Report · Automated Risk Assessment</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Generated On</p>
+            <p className="text-lg font-bold">{new Date(data.timestamp).toLocaleDateString()} {new Date(data.timestamp).toLocaleTimeString()}</p>
+          </div>
+        </div>
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-3 gap-8">
+          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Verified</p>
+            <p className="text-3xl font-black">{data.summary.totalTransactions}</p>
+          </div>
+          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Flagged Activity</p>
+            <p className="text-3xl font-black text-rose-600">{data.summary.flaggedTransactions}</p>
+          </div>
+          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Alert Rate</p>
+            <p className="text-3xl font-black text-slate-900">{data.summary.flagRate}</p>
+          </div>
+        </div>
+
+        {/* Risk Patterns */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold border-l-4 border-slate-900 pl-4">Critical Risk Patterns Identified</h2>
+          <div className="grid grid-cols-2 gap-4">
+            {data.topRiskPatterns.map(p => (
+              <div key={p.name} className="flex justify-between items-center p-4 border border-slate-100 rounded-xl">
+                <span className="font-semibold text-slate-700">{p.name}</span>
+                <span className="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs font-bold">{p.count} hits</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Critical Alerts Table */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold border-l-4 border-slate-900 pl-4">High Risk Alerts (Manual Review Required)</h2>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-900 text-white text-left">
+                <th className="px-4 py-3 rounded-tl-xl font-bold">Reference</th>
+                <th className="px-4 py-3 font-bold">Entity</th>
+                <th className="px-4 py-3 font-bold">Amount</th>
+                <th className="px-4 py-3 rounded-tr-xl font-bold">Triggers</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 border border-slate-100 border-t-0 rounded-b-xl overflow-hidden">
+              {data.criticalAlerts.map(tx => (
+                <tr key={tx._id}>
+                  <td className="px-4 py-3 font-mono text-[11px] font-bold text-slate-400">{tx.transactionId}</td>
+                  <td className="px-4 py-3 font-medium">{tx.sender} → {tx.receiver}</td>
+                  <td className="px-4 py-3 font-black text-rose-600">{tx.currency} {tx.amount.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-xs italic text-slate-500">{tx.triggeredRules.join(', ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer */}
+        <div className="pt-12 border-t border-slate-200 text-center text-slate-400 text-xs">
+          <p>© 2026 RegLens Compliance Engine. This is an automated summary report.</p>
+          <div className="mt-8 no-print flex justify-center gap-4">
+            <button onClick={() => window.print()} className="btn btn-primary px-8 py-3">Print to PDF</button>
+            <button onClick={onClose} className="btn btn-ghost px-8 py-3">Close Report</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Sidebar Nav Item ── */
 function NavItem({ label, icon, active, onClick }) {
   return (
@@ -197,7 +317,8 @@ export default function App() {
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
-  const [reply, setReply] = useState('');
+  const [chat, setChat] = useState([]); // { role: 'user' | 'ai', text: string }
+  const [report, setReport] = useState(null);
   const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => { load(); }, [filter]);
@@ -231,29 +352,43 @@ export default function App() {
     e.target.value = '';
   }
 
+  async function generateReport() {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API}/report`);
+      setReport(await r.json());
+    } catch (_) { alert('Report generation failed.'); }
+    setLoading(false);
+  }
+
   async function ask(e) {
     e.preventDefault();
-    if (!query.trim()) return;
+    const text = query.trim();
+    if (!text) return;
+    
+    setQuery('');
+    setChat(prev => [...prev, { role: 'user', text }]);
+
     try {
       const r = await fetch(`${API}/query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query: text }),
       });
       const d = await r.json();
 
-      // Handle rate limit (429)
-      if (r.status === 429) {
-        setReply(`⚠ ${d.error}`);
-        return;
-      }
+      let aiText = d.message;
+      if (r.status === 429) aiText = `⚠ ${d.error}`;
 
-      setReply(d.message);
+      setChat(prev => [...prev, { role: 'ai', text: aiText }]);
+
       if (d.intent === 'FILTER' && d.filters?.riskLevel) {
         setFilter(d.filters.riskLevel);
         setPage('dashboard');
       }
-    } catch (_) { setReply('Assistant unavailable.'); }
+    } catch (_) { 
+      setChat(prev => [...prev, { role: 'ai', text: 'Assistant unavailable.' }]);
+    }
   }
 
   async function saveNote(id, note) {
@@ -336,68 +471,105 @@ export default function App() {
                   <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Risk Review Dashboard</h1>
                   <p className="text-slate-500 text-sm mt-0.5">Transaction monitoring · Compliance analytics</p>
                 </div>
-                <label htmlFor="upload" className="btn btn-primary self-start sm:self-auto cursor-pointer gap-2">
-                  {loading ? (
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-                    </svg>
-                  ) : (
+                <div className="flex items-center gap-3 self-start sm:self-auto">
+                  <label htmlFor="upload" className="btn btn-primary cursor-pointer gap-2">
+                    {loading ? (
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                    )}
+                    {loading ? 'Processing…' : 'Upload File'}
+                  </label>
+                  <input id="upload" type="file" className="hidden" accept=".csv,.json,.xml,.pdf" onChange={upload} />
+                  
+                  <button onClick={generateReport} className="btn btn-ghost gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                  )}
-                  {loading ? 'Processing…' : 'Upload File'}
-                </label>
-                <input id="upload" type="file" className="hidden" accept=".csv,.json,.xml,.pdf" onChange={upload} />
+                    Export Report
+                  </button>
+                </div>
               </div>
 
               {/* Stats */}
               {stats && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up">
                   <div className="stat-card">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Records</p>
                     <p className="text-3xl font-extrabold mt-1">{stats.total}</p>
                   </div>
                   <div className="stat-card">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Flagged</p>
                     <p className="text-3xl font-extrabold mt-1 text-amber-600">{stats.flagged}</p>
                   </div>
-                  <div className="stat-card border-l-4 border-rose-400">
+                  <div className="stat-card border-l-4 border-rose-500">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">High Risk</p>
                     <p className="text-3xl font-extrabold mt-1 text-rose-600">{stats.highRisk}</p>
                   </div>
                   <div className="stat-card">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Health</p>
-                    <p className="text-3xl font-extrabold mt-1 text-emerald-600">Stable</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Audit Health</p>
+                    <p className="text-3xl font-extrabold mt-1 text-emerald-600">Secure</p>
                   </div>
                 </div>
               )}
 
-              {/* AI Assistant */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-blue-600 font-black text-base">✦</span>
-                  <span className="font-semibold text-sm">Compliance Assistant</span>
-                </div>
-                <form onSubmit={ask} className="flex gap-2">
-                  <input
-                    className="input-field"
-                    placeholder="e.g. show high risk, summarize today's flagged activity…"
-                    value={query}
-                    onChange={e => setQuery(e.target.value)}
-                  />
-                  <button type="submit" className="btn btn-primary flex-shrink-0">Ask</button>
-                </form>
-                {reply && (
-                  <div className="text-sm text-slate-700 italic bg-blue-50 border-l-4 border-blue-500 px-4 py-3 rounded-r-lg">
-                    <span className="font-semibold not-italic text-blue-600">AI: </span>{reply}
+              {/* AI Assistant Messaging UI */}
+              <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-[400px] animate-slide-up delay-100">
+                <div className="px-5 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600 font-extrabold text-lg">✦</span>
+                    <span className="font-bold text-sm">RegLens Risk Assistant</span>
                   </div>
-                )}
+                  <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    AI Active
+                  </span>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-5 space-y-4 flex flex-col">
+                  {chat.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center space-y-3 px-10">
+                      <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 text-xl font-black">✦</div>
+                      <p className="text-sm font-bold text-slate-800">How can I help with your compliance audit?</p>
+                      <p className="text-xs text-slate-400 max-w-[280px]">Ask about specific risk levels, suspicious patterns, or data summaries.</p>
+                      
+                      <div className="flex flex-wrap justify-center gap-2 mt-4">
+                        {['Show high risk', "Summarize today's alerts", 'Any North Korea activity?'].map(s => (
+                          <button key={s} onClick={() => { setQuery(s); }} className="text-[10px] font-bold px-3 py-1.5 rounded-full border border-slate-200 hover:border-blue-300 hover:bg-blue-50 transition-colors">
+                            "{s}"
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    chat.map((msg, i) => (
+                      <div key={i} className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}>
+                        {msg.text}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="p-4 border-t border-slate-100">
+                  <form onSubmit={ask} className="flex gap-2">
+                    <input
+                      className="input-field"
+                      placeholder="Type your question..."
+                      value={query}
+                      onChange={e => setQuery(e.target.value)}
+                    />
+                    <button type="submit" className="btn btn-primary px-5">Send</button>
+                  </form>
+                </div>
               </div>
 
               {/* Ledger Preview */}
-              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden animate-slide-up delay-200">
                 <div className="px-5 py-4 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50/60">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm">Recent Ledger</span>
@@ -489,28 +661,25 @@ export default function App() {
               <button onClick={() => setSelected(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto px-7 py-6 space-y-7">
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex items-start justify-between gap-4">
+              <div className="bg-white border border-slate-100 rounded-2xl p-6 flex items-center justify-between gap-8 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.1)]">
                 <div>
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-2">Risk Level</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Aggregated Risk Factor</p>
                   <RiskChip level={selected.riskLevel} />
                 </div>
-                <div className="text-right">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-1">Score</p>
-                  <p className="text-2xl font-black">{selected.riskScore}<span className="text-sm font-medium text-slate-400">/100</span></p>
-                </div>
+                <RiskScoreGauge score={selected.riskScore} />
               </div>
 
               <div>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-3">Compliance Verdict</p>
-                <div className="flex items-center gap-2.5">
-                  <div className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${selected.flagged ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                    {selected.flagged ? 'Flagged Activity' : 'Clear / Routine'}
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3">Compliance Verdict</p>
+                <div className="flex flex-col gap-2">
+                  <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-center ${selected.flagged ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
+                    {selected.flagged ? '⚠ Triggered Automated Investigation' : '✓ Verified Standard Activity'}
                   </div>
-                  <span className="text-[10px] text-slate-400 italic">
+                  <p className="text-[11px] text-slate-400 italic text-center px-4">
                     {selected.flagged
-                      ? 'Detected via multi-rule risk evaluation'
-                      : 'Verified against all established compliance rules'}
-                  </span>
+                      ? 'Detected via multi-layered rule evaluation and behavioral heuristics.'
+                      : 'Pattern matches routine institutional flow with no known compliance red flags.'}
+                  </p>
                 </div>
               </div>
 
@@ -572,6 +741,9 @@ export default function App() {
           </>
         )}
       </div>
+
+      {/* ══ Report Component ══ */}
+      {report && <ComplianceReport data={report} onClose={() => setReport(null)} />}
     </div>
   );
 }

@@ -35,6 +35,13 @@ class RiskEngine {
       triggeredRules.push(velocityResult.rule);
     }
 
+    // Rule 4: Sudden Spike Rule (Large deviation from historical average)
+    const spikeResult = this.checkSpike(transaction, historicalContext);
+    if (spikeResult.flagged) {
+      riskScore += spikeResult.score;
+      triggeredRules.push(spikeResult.rule);
+    }
+
     // Determine Risk Level
     let riskLevel = 'LOW';
     if (riskScore >= 70) riskLevel = 'HIGH';
@@ -104,6 +111,26 @@ class RiskEngine {
         flagged: true, 
         score: 35, 
         rule: 'VELOCITY_ALERT: Multiple transfers to same receiver within 24h' 
+      };
+    }
+    return { flagged: false };
+  }
+
+  /**
+   * Check for sudden spikes in transaction amount compared to history
+   */
+  static checkSpike(tx, history) {
+    if (!history || history.length < 3) return { flagged: false };
+
+    const amounts = history.map(h => h.amount);
+    const avg = amounts.reduce((a, b) => a + b, 0) / amounts.length;
+    
+    // If current transaction is > 500% of historical average
+    if (tx.amount > avg * 5 && tx.amount > 1000) {
+      return {
+        flagged: true,
+        score: 45,
+        rule: `SUDDEN_SPIKE: Transaction amount is ${Math.round((tx.amount / avg) * 100)}% of historical average`
       };
     }
     return { flagged: false };

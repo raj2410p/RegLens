@@ -31,6 +31,12 @@ const llm = new LlmService(); // reads GEMINI_API_KEY from .env
 app.use(cors());
 app.use(express.json());
 
+// Simple request logger
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 // Routes
 
 /**
@@ -147,6 +153,50 @@ app.get('/api/summary', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch summary' });
+  }
+});
+
+/**
+ * Generate full audit report data
+ */
+app.get('/api/report', async (req, res) => {
+  try {
+    const total = await Transaction.countDocuments();
+    const flagged = await Transaction.countDocuments({ flagged: true });
+    
+    // Group triggered rules to find most common risks
+    const transactions = await Transaction.find({ flagged: true }).select('triggeredRules riskLevel');
+    const riskCounts = {};
+    transactions.forEach(tx => {
+      tx.triggeredRules.forEach(rule => {
+        const baseRule = rule.split(':')[0];
+        riskCounts[baseRule] = (riskCounts[baseRule] || 0) + 1;
+      });
+    });
+
+    const topRisks = Object.entries(riskCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    const highRiskAlerts = await Transaction.find({ riskLevel: 'HIGH' })
+      .sort({ timestamp: -1 })
+      .limit(10)
+      .select('transactionId sender receiver amount currency triggeredRules');
+
+    res.json({
+      timestamp: new Date().toISOString(),
+      summary: {
+        totalTransactions: total,
+        flaggedTransactions: flagged,
+        flagRate: total > 0 ? ((flagged / total) * 100).toFixed(1) + '%' : '0%'
+      },
+      topRiskPatterns: topRisks,
+      criticalAlerts: highRiskAlerts
+    });
+  } catch (err) {
+    console.error('[Report API Error]', err);
+    res.status(500).json({ error: 'Failed to generate report data: ' + err.message });
   }
 });
 
