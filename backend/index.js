@@ -22,10 +22,12 @@ const Transaction = require('./models/Transaction');
 const ParserService = require('./services/ParserService');
 const RiskEngine = require('./services/RiskEngine');
 const LlmService = require('./services/LlmService');
+const PrivacyService = require('./services/PrivacyService');
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 const llm = new LlmService(); // reads GEMINI_API_KEY from .env
+const privacy = new PrivacyService();
 
 // Middleware
 app.use(cors());
@@ -62,6 +64,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     }
 
     const processedTransactions = [];
+    privacy.clear(); // Clear tokens for new batch
 
     // Process each transaction through Risk Engine
     for (const data of normalizedData) {
@@ -70,8 +73,18 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 
       const tx = new Transaction({ ...data, ...riskResults });
 
+      // Anonymize before sending to AI
+      const anonymizedTxData = {
+        ...tx.toObject(),
+        sender: privacy.tokenize(tx.sender),
+        receiver: privacy.tokenize(tx.receiver)
+      };
+
       // ✦ Generate AI explanation for ALL transactions — not just flagged ones
-      tx.aiExplanation = await llm.explainTransaction(tx);
+      const rawAiExplanation = await llm.explainTransaction(anonymizedTxData);
+      
+      // Detokenize the AI explanation to restore real names if they appear
+      tx.aiExplanation = privacy.detokenize(rawAiExplanation);
 
       const saved = await tx.save();
       processedTransactions.push(saved);
@@ -218,8 +231,25 @@ app.post('/api/query', queryLimiter, async (req, res) => {
 
     // Fetch the actual transaction records to give Gemini real context
     const transactions = await Transaction.find({}).sort({ timestamp: -1 }).limit(50).lean();
+    
+    // Anonymize transactions
+    privacy.clear();
+    const anonymizedTransactions = transactions.map(tx => ({
+      ...tx,
+      sender: privacy.tokenize(tx.sender),
+      receiver: privacy.tokenize(tx.receiver)
+    }));
 
-    const response = await llm.parseQuery(query, transactions);
+    // Anonymize the query text just in case user asked for a specific name
+    const anonymizedQuery = privacy.tokenize(query);
+
+    const response = await llm.parseQuery(anonymizedQuery, anonymizedTransactions);
+    
+    // Detokenize the AI response
+    if (response && response.message) {
+      response.message = privacy.detokenize(response.message);
+    }
+
     res.json(response);
   } catch (err) {
     console.error('[Query]', err.message);

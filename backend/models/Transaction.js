@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
+const CryptoService = require('../services/CryptoService');
 
 const TransactionSchema = new mongoose.Schema({
   transactionId: { type: String, required: true, unique: true },
   timestamp: { type: Date, required: true },
-  sender: { type: String, required: true },
-  receiver: { type: String, required: true },
+  sender: { type: String, required: true, set: CryptoService.encrypt, get: CryptoService.decrypt },
+  receiver: { type: String, required: true, set: CryptoService.encrypt, get: CryptoService.decrypt },
   amount: { type: Number, required: true },
   currency: { type: String, required: true },
   country: { type: String, required: true },
@@ -30,5 +31,9 @@ const TransactionSchema = new mongoose.Schema({
   rawSourceReference: { type: String },
   createdAt: { type: Date, default: Date.now },
 });
+
+// Ensure getters are applied when converting to JSON or Objects
+TransactionSchema.set('toJSON', { getters: true, virtuals: false });
+TransactionSchema.set('toObject', { getters: true });
 
 module.exports = mongoose.model('Transaction', TransactionSchema);
