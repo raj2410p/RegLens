@@ -49,15 +49,12 @@ Cover: what the transaction is, whether the pattern is concerning or routine, an
 Use precise financial language. Never call a transaction "definitely fraud" — frame everything as probability or recommendation.
 
 Transaction:
-  ID       : ${tx.transactionId}
-  Sender   : ${tx.sender}
-  Receiver : ${tx.receiver}
-  Amount   : ${tx.amount} ${tx.currency}
+  Amount   : ${tx.amount}
+  Currency : ${tx.currency}
   Country  : ${tx.country}
   Type     : ${tx.transactionType}
-  Risk     : ${tx.riskLevel} (score ${tx.riskScore}/100)
-  Flagged  : ${tx.flagged ? 'Yes' : 'No'}
-  Rules    : ${tx.triggeredRules?.join('; ') || 'None'}
+  Risk     : ${tx.riskScore}
+  Reasons  : ${tx.riskReasons?.join('; ') || 'None'}
 
 Write the narrative now (no bullet points, plain prose):
 `.trim();
@@ -191,14 +188,27 @@ Instructions:
      MOCK FALLBACKS (used only when no API key)
   ────────────────────────────────────────── */
   mockExplanation(tx) {
-    if (tx.riskLevel === 'LOW' && !tx.flagged) {
-      return `Transaction ${tx.transactionId} from ${tx.sender} to ${tx.receiver} for ${tx.currency} ${tx.amount} appears routine with no suspicious indicators. No analyst action required at this time.`;
+    if (tx.riskScore < 40 && !tx.isFlagged && !tx.flagged) {
+      return `Transaction for ${tx.currency} ${tx.amount} appears routine with no suspicious indicators. No analyst action required at this time.`;
     }
-    const parts = [`Transaction ${tx.transactionId} was assessed as ${tx.riskLevel} risk (score: ${tx.riskScore}/100).`];
-    if (tx.triggeredRules?.some(r => r.includes('THRESHOLD'))) parts.push(`The amount is near the $10,000 AML threshold, which may indicate structuring.`);
-    if (tx.triggeredRules?.some(r => r.includes('GEO')))       parts.push(`The jurisdiction (${tx.country}) requires enhanced due diligence.`);
-    if (tx.triggeredRules?.some(r => r.includes('VELOCITY'))) parts.push(`Repeated transfers to the same receiver suggest possible layering activity.`);
-    parts.push('Analyst should verify source of funds before clearing.');
+    const parts = [`This transaction was flagged because`];
+    const reasons = tx.riskReasons || tx.triggeredRules || [];
+    
+    // Convert rules into an explanation similar to the prompt requirement
+    let humanReadableReasons = [];
+    if (reasons.some(r => r.includes('HIGH_AMOUNT'))) humanReadableReasons.push('the amount is unusually high');
+    if (reasons.some(r => r.includes('VELOCITY'))) humanReadableReasons.push('multiple transfers happened in a short time');
+    if (reasons.some(r => r.includes('CROSS_BORDER'))) humanReadableReasons.push('the transfer appears cross-border');
+    if (reasons.some(r => r.includes('NEW_BENEFICIARY'))) humanReadableReasons.push('the beneficiary is new');
+    if (reasons.some(r => r.includes('KEYWORD'))) humanReadableReasons.push('suspicious keywords were found');
+    if (reasons.some(r => r.includes('MISMATCH'))) humanReadableReasons.push('there is a currency mismatch');
+
+    if (humanReadableReasons.length > 0) {
+      parts.push(humanReadableReasons.join(', ') + '.');
+    } else {
+      parts.push('of calculated risk parameters.');
+    }
+    
     return parts.join(' ');
   }
 

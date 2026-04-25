@@ -170,6 +170,7 @@ function TransactionsPage({ transactions, loading, filter, setFilter, setSelecte
             <option value="LOW">Low Risk</option>
             <option value="MEDIUM">Medium Risk</option>
             <option value="HIGH">High Risk</option>
+            <option value="FLAGGED">Flagged Only</option>
           </select>
         </div>
         <div className="overflow-x-auto">
@@ -327,7 +328,7 @@ export default function App() {
     setLoading(true);
     try {
       const [txRes, sumRes] = await Promise.all([
-        fetch(`${API}/transactions?riskLevel=${filter}`),
+        fetch(`${API}/transactions?${filter === 'FLAGGED' ? 'flagged=true' : 'riskLevel=' + filter}`),
         fetch(`${API}/summary`),
       ]);
       setTransactions(await txRes.json());
@@ -511,9 +512,9 @@ export default function App() {
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">High Risk</p>
                     <p className="text-3xl font-extrabold mt-1 text-rose-600">{stats.highRisk}</p>
                   </div>
-                  <div className="stat-card">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Audit Health</p>
-                    <p className="text-3xl font-extrabold mt-1 text-emerald-600">Secure</p>
+                  <div className="stat-card border-l-4 border-amber-500">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Flagged Amount</p>
+                    <p className="text-3xl font-extrabold mt-1 text-amber-600">${stats.totalFlaggedAmount?.toLocaleString() || 0}</p>
                   </div>
                 </div>
               )}
@@ -581,6 +582,7 @@ export default function App() {
                       <option value="LOW">Low Risk</option>
                       <option value="MEDIUM">Medium Risk</option>
                       <option value="HIGH">High Risk</option>
+                      <option value="FLAGGED">Flagged Only</option>
                     </select>
                     <button className="btn btn-ghost text-xs" onClick={() => setPage('transactions')}>View All →</button>
                   </div>
@@ -672,22 +674,22 @@ export default function App() {
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3">Compliance Verdict</p>
                 <div className="flex flex-col gap-2">
-                  <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-center ${selected.flagged ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
-                    {selected.flagged ? '⚠ Triggered Automated Investigation' : '✓ Verified Standard Activity'}
+                  <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-center ${selected.isFlagged || selected.flagged ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
+                    {selected.isFlagged || selected.flagged ? '⚠ Triggered Automated Investigation' : '✓ Verified Standard Activity'}
                   </div>
                   <p className="text-[11px] text-slate-400 italic text-center px-4">
-                    {selected.flagged
+                    {selected.isFlagged || selected.flagged
                       ? 'Detected via multi-layered rule evaluation and behavioral heuristics.'
                       : 'Pattern matches routine institutional flow with no known compliance red flags.'}
                   </p>
                 </div>
               </div>
 
-              {selected.triggeredRules?.length > 0 && (
+              {(selected.riskReasons?.length > 0 || selected.triggeredRules?.length > 0) && (
                 <div>
                   <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 mb-3">Triggered Rules</p>
                   <ul className="space-y-2">
-                    {selected.triggeredRules.map((r, i) => (
+                    {(selected.riskReasons || selected.triggeredRules).map((r, i) => (
                       <li key={i} className="flex gap-2 text-xs text-slate-700 leading-relaxed">
                         <span className="text-rose-400 mt-px flex-shrink-0">●</span> {r}
                       </li>

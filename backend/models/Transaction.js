@@ -9,12 +9,17 @@ const TransactionSchema = new mongoose.Schema({
   currency: { type: String, required: true },
   country: { type: String, required: true },
   transactionType: { type: String, required: true },
+  description: { type: String, default: '' },
+  senderCountry: { type: String },
+  receiverCountry: { type: String },
   
   // Scoring / Risk fields
   riskScore: { type: Number, default: 0 },
   riskLevel: { type: String, enum: ['LOW', 'MEDIUM', 'HIGH'], default: 'LOW' },
-  flagged: { type: Boolean, default: false },
-  triggeredRules: [{ type: String }],
+  isFlagged: { type: Boolean, default: false },
+  riskReasons: [{ type: String }],
+  flagged: { type: Boolean, default: false }, // legacy
+  triggeredRules: [{ type: String }], // legacy
   
   // Insights
   aiExplanation: { type: String },

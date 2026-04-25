@@ -76,6 +76,9 @@ class ParserService {
       currency: raw.currency || 'USD',
       country: raw.country || 'Unknown',
       transactionType: raw.transactionType || raw.type || 'Transfer',
+      description: raw.description || raw.notes || raw.details || '',
+      senderCountry: raw.senderCountry || '',
+      receiverCountry: raw.receiverCountry || '',
       sourceFormat: format,
       rawSourceReference: JSON.stringify(raw)
     };

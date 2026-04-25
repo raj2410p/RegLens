@@ -99,7 +99,7 @@ app.get('/api/transactions', async (req, res) => {
       query.riskLevel = riskLevel;
     }
     if (flagged === 'true') {
-      query.flagged = true;
+      query.$or = [{ flagged: true }, { isFlagged: true }];
     }
     if (search) {
       query.$or = [
@@ -135,20 +135,25 @@ app.get('/api/transactions/:id', async (req, res) => {
 app.get('/api/summary', async (req, res) => {
   try {
     const total = await Transaction.countDocuments();
-    const flagged = await Transaction.countDocuments({ flagged: true });
+    const flagged = await Transaction.countDocuments({ $or: [{ flagged: true }, { isFlagged: true }] });
     const highRisk = await Transaction.countDocuments({ riskLevel: 'HIGH' });
     const mediumRisk = await Transaction.countDocuments({ riskLevel: 'MEDIUM' });
     const lowRisk = await Transaction.countDocuments({ riskLevel: 'LOW' });
 
+    // Calculate total flagged amount
+    const flaggedRecords = await Transaction.find({ $or: [{ flagged: true }, { isFlagged: true }] });
+    const totalFlaggedAmount = flaggedRecords.reduce((sum, tx) => sum + tx.amount, 0);
+
     // Recent patterns (simplified)
-    const recentFlagged = await Transaction.find({ flagged: true }).sort({ timestamp: -1 }).limit(5);
+    const recentFlagged = await Transaction.find({ $or: [{ flagged: true }, { isFlagged: true }] }).sort({ timestamp: -1 }).limit(5);
 
     res.json({
-      total,
-      flagged,
-      highRisk,
-      mediumRisk,
-      lowRisk,
+      total: Number(total) || 0,
+      flagged: Number(flagged) || 0,
+      highRisk: Number(highRisk) || 0,
+      mediumRisk: Number(mediumRisk) || 0,
+      lowRisk: Number(lowRisk) || 0,
+      totalFlaggedAmount,
       recentFlagged
     });
   } catch (err) {
