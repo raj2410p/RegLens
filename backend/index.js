@@ -64,39 +64,52 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     }
 
     const processedTransactions = [];
-    privacy.clear(); // Clear tokens for new batch
-
-    // Process each transaction through Risk Engine
+    
+    // 1. Initial save with Risk Engine results (Fast)
     for (const data of normalizedData) {
-      const history = await Transaction.find({ sender: data.sender }).sort({ timestamp: -1 }).limit(50);
+      const history = await Transaction.find({ sender: data.sender }).sort({ timestamp: -1 }).limit(20);
       const riskResults = await RiskEngine.evaluate(data, history);
-
       const tx = new Transaction({ ...data, ...riskResults });
-
-      // Anonymize before sending to AI
-      const anonymizedTxData = {
-        ...tx.toObject(),
-        sender: privacy.tokenize(tx.sender),
-        receiver: privacy.tokenize(tx.receiver)
-      };
-
-      // ✦ Generate AI explanation for ALL transactions — not just flagged ones
-      const rawAiExplanation = await llm.explainTransaction(anonymizedTxData);
-      
-      // Detokenize the AI explanation to restore real names if they appear
-      tx.aiExplanation = privacy.detokenize(rawAiExplanation);
-
       const saved = await tx.save();
       processedTransactions.push(saved);
     }
 
+    // 2. Respond immediately to avoid Heroku 30s timeout
     res.json({
-      message: `Successfully processed ${processedTransactions.length} transactions with AI analysis.`,
+      message: `Successfully received ${processedTransactions.length} transactions. AI risk analysis is running in the background. Refresh in a few moments to see full details.`,
       count: processedTransactions.length
     });
+
+    // 3. Process AI Narratives in the background (Slow)
+    // We do this after the response is sent.
+    setImmediate(async () => {
+      console.log(`[Background] Starting AI analysis for ${processedTransactions.length} records...`);
+      const backgroundPrivacy = new PrivacyService(); // Fresh instance to avoid state collision
+      
+      for (const tx of processedTransactions) {
+        try {
+          const anonymizedTxData = {
+            ...tx.toObject(),
+            sender: backgroundPrivacy.tokenize(tx.sender),
+            receiver: backgroundPrivacy.tokenize(tx.receiver)
+          };
+
+          const rawAiExplanation = await llm.explainTransaction(anonymizedTxData);
+          const aiExplanation = backgroundPrivacy.detokenize(rawAiExplanation);
+
+          await Transaction.findByIdAndUpdate(tx._id, { aiExplanation });
+        } catch (err) {
+          console.error(`[Background Error] AI analysis failed for TX ${tx.transactionId}:`, err.message);
+        }
+      }
+      console.log(`[Background] AI analysis complete.`);
+    });
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to process file: ' + err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to process file: ' + err.message });
+    }
   }
 });
 
