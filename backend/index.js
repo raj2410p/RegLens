@@ -63,46 +63,39 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Unsupported file format. Please use CSV, JSON, XML, or PDF.' });
     }
 
-    const processedTransactions = [];
-    
-    // 1. Initial save with Risk Engine results (Fast)
-    for (const data of normalizedData) {
-      const history = await Transaction.find({ sender: data.sender }).sort({ timestamp: -1 }).limit(20);
-      const riskResults = await RiskEngine.evaluate(data, history);
-      const tx = new Transaction({ ...data, ...riskResults });
-      const saved = await tx.save();
-      processedTransactions.push(saved);
-    }
-
-    // 2. Respond immediately to avoid Heroku 30s timeout
+    // Respond immediately to be safely under Heroku's 30s limit
     res.json({
-      message: `Successfully received ${processedTransactions.length} transactions. AI risk analysis is running in the background. Refresh in a few moments to see full details.`,
-      count: processedTransactions.length
+      message: `File received (${normalizedData.length} records). Processing risk analysis and AI explanations in the background. Please refresh in a few seconds.`,
+      count: normalizedData.length
     });
 
-    // 3. Process AI Narratives in the background (Slow)
-    // We do this after the response is sent.
+    // 2. Process Everything in the background
     setImmediate(async () => {
-      console.log(`[Background] Starting AI analysis for ${processedTransactions.length} records...`);
-      const backgroundPrivacy = new PrivacyService(); // Fresh instance to avoid state collision
-      
-      for (const tx of processedTransactions) {
+      console.log(`[Background] Processing ${normalizedData.length} records...`);
+      const backgroundPrivacy = new PrivacyService();
+
+      for (const data of normalizedData) {
         try {
+          // Risk Engine (Fast)
+          const history = await Transaction.find({ sender: data.sender }).sort({ timestamp: -1 }).limit(20);
+          const riskResults = await RiskEngine.evaluate(data, history);
+          const tx = new Transaction({ ...data, ...riskResults });
+          
+          // AI Narrative (Slow - optional but we do it for all now)
           const anonymizedTxData = {
             ...tx.toObject(),
             sender: backgroundPrivacy.tokenize(tx.sender),
             receiver: backgroundPrivacy.tokenize(tx.receiver)
           };
-
           const rawAiExplanation = await llm.explainTransaction(anonymizedTxData);
-          const aiExplanation = backgroundPrivacy.detokenize(rawAiExplanation);
+          tx.aiExplanation = backgroundPrivacy.detokenize(rawAiExplanation);
 
-          await Transaction.findByIdAndUpdate(tx._id, { aiExplanation });
+          await tx.save();
         } catch (err) {
-          console.error(`[Background Error] AI analysis failed for TX ${tx.transactionId}:`, err.message);
+          console.error(`[Background Error] Failed at record ${data.transactionId}:`, err.message);
         }
       }
-      console.log(`[Background] AI analysis complete.`);
+      console.log(`[Background] Processing complete.`);
     });
 
   } catch (err) {
