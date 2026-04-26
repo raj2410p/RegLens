@@ -3,6 +3,8 @@
 **RegLens** is a modern, AI-powered financial compliance and risk monitoring dashboard. It enables automated parsing of transaction records, risk-rule evaluation, and natural language analytics utilizing Google's Gemini AI, all while adhering to strict data privacy and encryption standards.
 
 ---
+## live demo
+🌐 [Deployed on Heroku](https://reglens-e89cf826b3cb.herokuapp.com/)  
 
 ## 🌟 Key Features
 
