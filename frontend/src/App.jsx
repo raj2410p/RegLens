@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './index.css';
 
-const API = 'http://localhost:5000/api';
+const API = import.meta.env && import.meta.env.MODE === 'production' ? '/api' : 'http://localhost:5000/api';
 
 /* ── Risk Chip ── */
 function RiskChip({ level }) {
