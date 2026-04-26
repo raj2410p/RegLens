@@ -13,26 +13,35 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 class LlmService {
   constructor() {
     const apiKey = process.env.GEMINI_API_KEY;
-    this.useMock = !apiKey || apiKey === 'MOCK';
+    this.useMock = true; // Forced mock mode due to quota limits
 
     if (!this.useMock) {
       // @google/generative-ai standard implementation
       this.ai = new GoogleGenerativeAI(apiKey);
-      this.modelName = 'gemini-1.5-flash'; // Balanced for performance/availability
+      this.modelName = 'gemini-2.0-flash'; // Fallback to 2.0-flash due to 2.5 503 High Demand
       console.log(`[LlmService] ✓ Gemini AI initialized (${this.modelName})`);
     } else {
       console.warn('[LlmService] ⚠ No API key — using mock fallback');
     }
   }
 
-  async _generate(prompt) {
-    try {
-      const model = this.ai.getGenerativeModel({ model: this.modelName });
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      return response.text()?.trim() || '';
-    } catch (err) {
-      throw err;
+  async _generate(prompt, retries = 3) {
+    if (this.useMock) return '';
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const model = this.ai.getGenerativeModel({ model: this.modelName });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text()?.trim() || '';
+      } catch (err) {
+        if (err.status === 429 || err.message.includes('429')) {
+          console.warn(`[LlmService] Rate limit hit. Retrying attempt ${attempt}/${retries} in ${attempt * 3} seconds...`);
+          if (attempt === retries) throw err;
+          await new Promise(r => setTimeout(r, attempt * 3000));
+        } else {
+          throw err;
+        }
+      }
     }
   }
 

@@ -230,9 +230,12 @@ app.post('/api/query', queryLimiter, async (req, res) => {
     if (!query || !query.trim()) return res.status(400).json({ error: 'Query is empty.' });
 
     // Fetch the actual transaction records to give Gemini real context
-    const transactions = await Transaction.find({}).sort({ timestamp: -1 }).limit(50).lean();
+    // We cannot use .lean() here because we need the Mongoose getters to decrypt the fields!
+    const dbTransactions = await Transaction.find({}).sort({ timestamp: -1 }).limit(50);
+    const transactions = dbTransactions.map(doc => doc.toObject());
     
     // Anonymize transactions
+
     privacy.clear();
     const anonymizedTransactions = transactions.map(tx => ({
       ...tx,
@@ -240,10 +243,9 @@ app.post('/api/query', queryLimiter, async (req, res) => {
       receiver: privacy.tokenize(tx.receiver)
     }));
 
-    // Anonymize the query text just in case user asked for a specific name
-    const anonymizedQuery = privacy.tokenize(query);
-
-    const response = await llm.parseQuery(anonymizedQuery, anonymizedTransactions);
+    // We don't tokenize the full query string because that would replace the whole sentence with "Entity_X"
+    // and Gemini/mockQuery won't understand "show high risk" anymore.
+    const response = await llm.parseQuery(query, anonymizedTransactions);
     
     // Detokenize the AI response
     if (response && response.message) {
