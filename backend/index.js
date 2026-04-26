@@ -130,6 +130,22 @@ app.get('/api/transactions', async (req, res) => {
 });
 
 /**
+ * Clear all transactions
+ */
+app.delete('/api/transactions', async (req, res) => {
+  try {
+    const result = await Transaction.deleteMany({});
+    res.json({ 
+      message: `Successfully cleared ${result.deletedCount} transactions.`,
+      count: result.deletedCount 
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to clear transactions' });
+  }
+});
+
+/**
  * Get single transaction
  */
 app.get('/api/transactions/:id', async (req, res) => {
